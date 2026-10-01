@@ -1,0 +1,9 @@
+{
+    "name": "SuitWardrobeSimple",
+    "version_number": "0.1.0",
+    "website_url": "https://github.com/Davesc0/LC-SuitWardrobeSimple",
+    "description": "The suit rack opens a UI menu instead of the vanilla rack.",
+    "dependencies": [
+        "BepInEx-BepInExPack-5.4.2100"
+    ]
+}
