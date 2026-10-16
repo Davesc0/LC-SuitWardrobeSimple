@@ -153,7 +153,6 @@ namespace SuitWardrobeSimple
             data.clearColorMode = HDAdditionalCameraData.ClearColorMode.Color;
             data.backgroundColorHDR = new Color(0.035f, 0.035f, 0.04f, 1f);
 
-            // No fog, it would wash out the player.
             data.customRenderingSettings = true;
             data.renderingPathCustomFrameSettingsOverrideMask.mask[(uint)FrameSettingsField.AtmosphericScattering] = true;
             data.renderingPathCustomFrameSettings.SetEnabled(FrameSettingsField.AtmosphericScattering, false);
@@ -242,7 +241,6 @@ namespace SuitWardrobeSimple
             _body = _player.thisPlayerModel;
             if (_body == null || _body.gameObject.layer == ModelLayer || _body.gameObject.layer == NoPostModelLayer)
             {
-                // ModelReplacementAPI already put it on a layer this camera sees.
                 _body = null;
                 return;
             }

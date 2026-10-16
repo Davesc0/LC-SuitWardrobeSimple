@@ -3,33 +3,40 @@
 Changes how the suit rack works. You can't change suits by clicking the ones on the rack
 anymore. Instead, the rack opens a wardrobe menu with every suit the crew owns.
 
-![The suit rack](https://raw.githubusercontent.com/Davesc0/LC-SuitWardrobeSimple/main/docs/rack.webp)
-![The wardrobe menu](https://raw.githubusercontent.com/Davesc0/LC-SuitWardrobeSimple/main/docs/menu.webp)
+| The rack | The wardrobe |
+| :---: | :---: |
+| ![The suit rack](https://raw.githubusercontent.com/Davesc0/LC-SuitWardrobeSimple/main/docs/rack.webp) | ![The wardrobe menu](https://raw.githubusercontent.com/Davesc0/LC-SuitWardrobeSimple/main/docs/menu.webp) |
 
 ## Features
 
-- **Tabs per mod or author**, plus a search box.
-- **Preview before you wear it.** Click a suit to try it on: only you see it, on your own
-  character (model replacements too). Drag to turn, scroll to zoom. Press Wear to change for
-  real, or close to go back to your old suit.
-- **Favourites.** Star a suit to keep it in the Favourites tab.
-- **Thumbnails.** Each suit has a picture in the list. The only way I found to make them was to
-  photograph every suit on your character, and this can only happen after a lobby loads. It only
-  needs to happen once: the pictures are cached and load almost instantly after that. While they
-  are being taken the rack can't be opened, but it shows how far along it is.
+- Tabs per mod or author
+- Preview before you wear a suit
+- Favourites
+- Thumbnail for every suit
+- Controller support
 
-Changing suits uses the game's own code, so players without the mod see the change too. In
-principle the mod is client side.
+> **Note:** the thumbnails are made by photographing every suit on your character after a lobby
+> loads. This only happens once, they are cached after that. While it runs the rack can't be
+> opened, but it shows the progress.
+
+Changing suits uses the game's own code, so players without the mod see the change too.
+Optional: unlock every suit for free (`UnlockAllSuits` in the config, host only)
+
+## Recommended
+
+- **SuitSaver**: saves the suit you wear, not the ones you only try on.
+- **InputUtils**: with it the controller hints are button icons, without it button
+  names.
+- **CorrectControllerIcon**: optional. The icons follow the controller picked there.
 
 ## Compatibility
 
-- **More_Suits** and every suit pack loaded through it. The tabs are named after the pack.
+- **More_Suits** and every suit pack loaded through it.
 - **ModelReplacementAPI**: replacement models are tried on and shown in the preview.
-- **TooManySuits**: optional. Without it, the suits that don't fit on the rail are hidden. With
+- **TooManySuits**: without it, the suits that don't fit on the rail are hidden. With
   it, the page arrows are hidden by default and the rack stays on the first page. Every suit is
   in the wardrobe either way.
 - **BiggerShip**: its longer rack works end to end and holds as many suits as fit on it.
-- **SuitSaver**: saves the suit you wear, not the ones you only try on.
 
 ## Note
 

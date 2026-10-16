@@ -2,7 +2,6 @@ using GameNetcodeStuff;
 
 namespace SuitWardrobeSimple
 {
-    // Local only, no RPC, so nobody else sees the suit being tried on.
     internal static class TryOn
     {
         private static int _original = -1;

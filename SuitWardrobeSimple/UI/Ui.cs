@@ -16,6 +16,10 @@ namespace SuitWardrobeSimple
         internal static readonly Color Text = new Color(1f, 0.88f, 0.78f, 1f);
         internal static readonly Color Muted = new Color(0.62f, 0.55f, 0.5f, 1f);
 
+        // The wardrobe moves around with its own controller code. Unity's navigation, and menu mods
+        // built on it like TidyKeybinds, would select a second button at the same time.
+        private static readonly Navigation NoNavigation = new Navigation { mode = Navigation.Mode.None };
+
         internal static TMP_FontAsset Font => HUDManager.Instance != null && HUDManager.Instance.chatText != null
             ? HUDManager.Instance.chatText.font
             : null;
@@ -80,6 +84,7 @@ namespace SuitWardrobeSimple
         {
             Image background = Image(parent, name, color);
             Button button = background.gameObject.AddComponent<Button>();
+            button.navigation = NoNavigation;
             button.targetGraphic = background;
             button.colors = new ColorBlock
             {
@@ -124,6 +129,7 @@ namespace SuitWardrobeSimple
             Fill(text.rectTransform);
 
             TMP_InputField field = root.gameObject.AddComponent<TMP_InputField>();
+            field.navigation = NoNavigation;
             field.targetGraphic = background;
             field.textViewport = viewport;
             field.textComponent = text;
@@ -138,6 +144,15 @@ namespace SuitWardrobeSimple
 
             root.gameObject.SetActive(true);
             return field;
+        }
+
+        internal static Image Icon(Transform parent, string name)
+        {
+            Image icon = Image(parent, name, Color.white);
+            icon.preserveAspect = true;
+            icon.raycastTarget = false;
+            icon.gameObject.SetActive(false);
+            return icon;
         }
 
         internal static RectTransform Scroll(Transform parent, string name, bool vertical, out ScrollRect scroll)

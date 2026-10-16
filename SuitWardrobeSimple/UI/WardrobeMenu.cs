@@ -10,12 +10,11 @@ using UnityEngine.UI;
 
 namespace SuitWardrobeSimple
 {
-    internal sealed class WardrobeMenu : MonoBehaviour
+    internal sealed partial class WardrobeMenu : MonoBehaviour
     {
         private const string AllTab = "All";
         private const string FavouritesTab = "Favourites";
 
-        // Laid out for 1920x1080, the canvas scales it to the real screen.
         private const float PanelHeight = 800f;
         private const float Pad = 24f;
         private const float Gap = 14f;
@@ -43,6 +42,7 @@ namespace SuitWardrobeSimple
         private TextMeshProUGUI _selectedSource;
         private Button _wear;
         private TextMeshProUGUI _wearLabel;
+        private TextMeshProUGUI _closeLabel;
 
         private readonly PreviewCamera _preview = new PreviewCamera();
         private readonly Dictionary<SuitEntry, Image> _tiles = new Dictionary<SuitEntry, Image>();
@@ -61,7 +61,9 @@ namespace SuitWardrobeSimple
         private bool _inBackground;
         private float _nextCalmCheck;
         private float _nextSuitCheck;
-        private string _lastWait;
+
+        // Set when suits may have been added, so the list is only checked for missing pictures then.
+        private bool _suitsChanged = true;
         private SuitEntry _posing;
         private int _posedAtFrame;
         private TextMeshProUGUI _photoProgress;
@@ -78,12 +80,16 @@ namespace SuitWardrobeSimple
             if (player.isPlayerDead || player.inTerminalMenu || player.quickMenuManager.isMenuOpen)
                 return;
 
-            // The rack is disabled while thumbnails are taken, this only catches a press
-            // that lands right as they start.
             Prepare();
             if (_instance._inBackground)
                 return;
             _instance.Show(player);
+        }
+
+        internal static void SuitsChanged()
+        {
+            if (_instance != null)
+                _instance._suitsChanged = true;
         }
 
         internal static void Prepare()
@@ -131,6 +137,7 @@ namespace SuitWardrobeSimple
             _previewImage.texture = _preview.Texture;
             _screen.SetActive(true);
             LockPlayer();
+            StartInput();
             _subject = player;
             QueuePhotos(_suits.Where(suit => !Thumbnails.Has(suit.Name)));
         }
@@ -141,6 +148,7 @@ namespace SuitWardrobeSimple
                 return;
 
             StopPhotos(showSelected: false);
+            _suitsChanged = true;
             PlayerControllerB player = _player;
             _player = null;
             _subject = null;
@@ -176,6 +184,9 @@ namespace SuitWardrobeSimple
                 return;
             }
 
+            if (HandleGamepad())
+                return;
+
             // The chat's Enter handler resets isTypingChat, so the locks are set again every frame.
             HoldLocks();
             TakePhotos();
@@ -192,8 +203,6 @@ namespace SuitWardrobeSimple
             if (_instance == this)
                 _instance = null;
         }
-
-        // ---- Locking the player -----------------------------------------------------------
 
         // isTypingChat also stops Escape from opening the pause menu.
         private void LockPlayer()
@@ -230,14 +239,11 @@ namespace SuitWardrobeSimple
             Cursor.visible = false;
         }
 
-        // ---- Suit list --------------------------------------------------------------------
-
         private IEnumerable<string> TabNames()
         {
             yield return AllTab;
             yield return FavouritesTab;
 
-            // Vanilla first, then the packs in ABC order, and unknown suits last.
             IEnumerable<string> sources = _suits.Select(suit => suit.Source).Distinct().ToList();
             if (sources.Contains(SuitSources.Vanilla))
                 yield return SuitSources.Vanilla;
@@ -323,8 +329,10 @@ namespace SuitWardrobeSimple
                 Destroy(child.gameObject);
             _tiles.Clear();
             _pictures.Clear();
+            _stars.Clear();
 
             List<SuitEntry> visible = Visible().ToList();
+            _visible = visible;
             foreach (SuitEntry suit in visible)
                 _tiles[suit] = AddTile(suit);
 
@@ -375,6 +383,7 @@ namespace SuitWardrobeSimple
             starRect.sizeDelta = new Vector2(32f, 32f);
             TextMeshProUGUI starLabel = star.GetComponentInChildren<TextMeshProUGUI>();
             PaintStar(starLabel, suit);
+            _stars[suit] = starLabel;
             star.onClick.AddListener(() => ToggleFavourite(suit, starLabel));
 
             return (Image)tile.targetGraphic;
@@ -401,11 +410,8 @@ namespace SuitWardrobeSimple
                 entry.Value.color = entry.Key == _selected ? Ui.AccentDark : Ui.Raised;
         }
 
-        // ---- Selected suit ----------------------------------------------------------------
-
         private void Select(SuitEntry suit)
         {
-            // Picking a suit wins over the thumbnails, the rest are taken next time.
             StopPhotos(showSelected: false);
             _selected = suit;
             TryOn.Show(_player, suit.Id);
@@ -419,10 +425,10 @@ namespace SuitWardrobeSimple
             _selectedName.text = _selected?.Name ?? string.Empty;
             _selectedSource.text = _selected?.Source ?? string.Empty;
             _wear.interactable = !wearing;
-            _wearLabel.text = wearing ? "Wearing" : "Wear";
+            _wearLabel.text = wearing ? "Wearing" : ButtonPrompt(_wearIcon, _wearLabel, "buttonSouth", "A", "Cross") + "Wear";
+            if (wearing)
+                ButtonPrompt(_wearIcon, _wearLabel, null, null, null);
         }
-
-        // ---- Thumbnails -------------------------------------------------------------------
 
         // Frames to wait: exposure settling, then MRAPI swapping the model.
         private const int WarmUpFrames = 12;
@@ -491,8 +497,6 @@ namespace SuitWardrobeSimple
                 TryOn.Show(_player, _selected?.Id ?? TryOn.Original);
         }
 
-        // ---- Thumbnails in the background -------------------------------------------------
-
         private const float CalmInterval = 1f;
         private const float SuitInterval = 5f;
 
@@ -500,17 +504,8 @@ namespace SuitWardrobeSimple
         {
             if (_inBackground)
             {
-                string busy = WaitReason(_subject);
-                if (busy != null)
-                {
-                    Plugin.mlg.LogInfo($"Wardrobe pictures paused: {busy}. The rest are taken later.");
+                if (!CanTakePhotos(_subject) || !TakePhotos())
                     StopBackground();
-                }
-                else if (!TakePhotos())
-                {
-                    Plugin.mlg.LogInfo("Wardrobe pictures done.");
-                    StopBackground();
-                }
                 return;
             }
 
@@ -519,19 +514,17 @@ namespace SuitWardrobeSimple
             _nextCalmCheck = Time.time + CalmInterval;
 
             PlayerControllerB player = GameNetworkManager.Instance?.localPlayerController;
-            string wait = WaitReason(player);
-            if (wait != _lastWait && wait != null)
-                Plugin.mlg.LogDebug($"Wardrobe pictures waiting: {wait}.");
-            _lastWait = wait;
-            if (wait != null || Time.time < _nextSuitCheck)
+            if (!_suitsChanged || !CanTakePhotos(player) || Time.time < _nextSuitCheck)
                 return;
             _nextSuitCheck = Time.time + SuitInterval;
 
             List<SuitEntry> missing = SuitCatalog.Owned().Where(suit => !Thumbnails.Has(suit.Name)).ToList();
             if (missing.Count == 0)
+            {
+                _suitsChanged = false;
                 return;
+            }
 
-            Plugin.mlg.LogInfo($"Taking pictures of {missing.Count} suit(s) for the wardrobe.");
             _inBackground = true;
             _subject = player;
             TryOn.Begin(player);
@@ -547,24 +540,26 @@ namespace SuitWardrobeSimple
             RackTrigger.SetBusy($"Preparing wardrobe... {done}/{_photoTotal}");
         }
 
-        private static string WaitReason(PlayerControllerB player)
+        // In orbit, alive and not busy: a suit change can't get in the way of anything.
+        private static bool CanTakePhotos(PlayerControllerB player)
         {
             StartOfRound round = StartOfRound.Instance;
             if (player == null || round == null)
-                return "no local player yet";
+                return false;
             if (!player.isPlayerControlled || player.isPlayerDead)
-                return "player not in control";
+                return false;
             if (player.inTerminalMenu || player.inSpecialInteractAnimation)
-                return "player busy";
-            if (!round.inShipPhase || round.travellingToNewLevel || round.shipIsLeaving)
-                return "not in orbit";
-            return null;
+                return false;
+            return round.inShipPhase && !round.travellingToNewLevel && !round.shipIsLeaving;
         }
 
         private void StopBackground()
         {
             if (!_inBackground)
                 return;
+
+            // Anything left over, the player got busy, is taken on the next check.
+            _suitsChanged = true;
 
             _inBackground = false;
             StopPhotos(showSelected: false);
@@ -583,8 +578,6 @@ namespace SuitWardrobeSimple
                 : $"Taking pictures {_photoTotal - left + 1} / {_photoTotal}\nclick a suit to skip";
         }
 
-        // ---- Building the menu ------------------------------------------------------------
-
         private void Build()
         {
             DontDestroyOnLoad(gameObject);
@@ -598,7 +591,6 @@ namespace SuitWardrobeSimple
             scaler.matchWidthOrHeight = 0.5f;
             gameObject.AddComponent<GraphicRaycaster>();
 
-            // Catches clicks outside the panel so they don't reach the game.
             Image backdrop = Ui.Image(transform, "Backdrop", Ui.Backdrop);
             Ui.Fill(backdrop.rectTransform);
             _screen = backdrop.gameObject;
@@ -627,9 +619,8 @@ namespace SuitWardrobeSimple
             Ui.Box((RectTransform)_search.transform, ListLeft + ListWidth - 360f, 26f, 360f, 46f);
             _search.onValueChanged.AddListener(_ => Refresh());
 
-            // Tabs go in a column, a row ran off the screen with many suit packs.
             _tabs = Ui.Scroll(panel, "Tabs", vertical: true, out ScrollRect tabScroll);
-            Ui.Column((RectTransform)tabScroll.transform, Pad, ContentTop, TabsWidth, Pad);
+            Ui.Column((RectTransform)tabScroll.transform, Pad, ContentTop, TabsWidth, Pad + 34f);
             var tabLayout = _tabs.gameObject.AddComponent<VerticalLayoutGroup>();
             tabLayout.spacing = 6f;
             tabLayout.padding = new RectOffset(0, 0, 0, 8);
@@ -641,11 +632,11 @@ namespace SuitWardrobeSimple
             _grid = Ui.Scroll(panel, "Suits", vertical: true, out _gridScroll);
             Ui.Column((RectTransform)_gridScroll.transform, ListLeft, ContentTop, ListWidth, Pad + 32f);
             var grid = _grid.gameObject.AddComponent<GridLayoutGroup>();
-            grid.cellSize = new Vector2(278f, 76f);
-            grid.spacing = new Vector2(8f, 8f);
+            grid.cellSize = new Vector2(278f, TileHeight);
+            grid.spacing = new Vector2(TileGap, TileGap);
             grid.padding = new RectOffset(5, 5, 0, 8);
             grid.constraint = GridLayoutGroup.Constraint.FixedColumnCount;
-            grid.constraintCount = 3;
+            grid.constraintCount = Columns;
 
             _count = Ui.Label(panel, "Count", string.Empty, 18f);
             _count.color = Ui.Muted;
@@ -653,6 +644,25 @@ namespace SuitWardrobeSimple
             _count.rectTransform.pivot = new Vector2(0f, 0f);
             _count.rectTransform.anchoredPosition = new Vector2(ListLeft, Pad - 4f);
             _count.rectTransform.sizeDelta = new Vector2(ListWidth, 28f);
+
+            _tabHint = Ui.Label(panel, "TabHint", string.Empty, 18f);
+            _tabHint.color = Ui.Muted;
+            _tabHint.rectTransform.anchorMin = _tabHint.rectTransform.anchorMax = new Vector2(0f, 0f);
+            _tabHint.rectTransform.pivot = new Vector2(0f, 0f);
+            _tabHint.rectTransform.anchoredPosition = new Vector2(Pad, Pad - 4f);
+            _tabHint.rectTransform.sizeDelta = new Vector2(TabsWidth, 28f);
+
+            _favouriteHint = Ui.Label(panel, "FavouriteHint", string.Empty, 18f, TextAlignmentOptions.MidlineRight);
+            _favouriteHint.color = Ui.Muted;
+            _favouriteHint.rectTransform.anchorMin = _favouriteHint.rectTransform.anchorMax = new Vector2(0f, 0f);
+            _favouriteHint.rectTransform.pivot = new Vector2(1f, 0f);
+            _favouriteHint.rectTransform.anchoredPosition = new Vector2(ListLeft + ListWidth, Pad - 4f);
+            _favouriteHint.rectTransform.sizeDelta = new Vector2(320f, 28f);
+
+            _tabIcons = new[] { Ui.Icon(panel, "LeftShoulder"), Ui.Icon(panel, "RightShoulder") };
+            for (int i = 0; i < _tabIcons.Length; i++)
+                Ui.Box(_tabIcons[i].rectTransform, Pad + i * (HintIcon + 4f), PanelHeight - Pad + 4f - 28f, HintIcon, 28f);
+            _favouriteIcon = Ui.Icon(panel, "Favourite");
         }
 
         private void BuildSide(Transform panel)
@@ -667,13 +677,13 @@ namespace SuitWardrobeSimple
             aspect.aspectRatio = PreviewCamera.Aspect;
             _previewImage.gameObject.AddComponent<PreviewDrag>().Camera = _preview;
 
-            TextMeshProUGUI hint = Ui.Label(frame.transform, "Hint", "Drag to turn, scroll to zoom", 16f, TextAlignmentOptions.Center);
-            hint.color = Ui.Muted;
-            hint.rectTransform.anchorMin = new Vector2(0f, 0f);
-            hint.rectTransform.anchorMax = new Vector2(1f, 0f);
-            hint.rectTransform.pivot = new Vector2(0.5f, 0f);
-            hint.rectTransform.anchoredPosition = new Vector2(0f, 10f);
-            hint.rectTransform.sizeDelta = new Vector2(0f, 24f);
+            _hint = Ui.Label(frame.transform, "Hint", string.Empty, 16f, TextAlignmentOptions.Center);
+            _hint.color = Ui.Muted;
+            _hint.rectTransform.anchorMin = new Vector2(0f, 0f);
+            _hint.rectTransform.anchorMax = new Vector2(1f, 0f);
+            _hint.rectTransform.pivot = new Vector2(0.5f, 0f);
+            _hint.rectTransform.anchoredPosition = new Vector2(0f, 10f);
+            _hint.rectTransform.sizeDelta = new Vector2(0f, 24f);
 
             _photoProgress = Ui.Label(frame.transform, "Photos", string.Empty, 18f, TextAlignmentOptions.Center);
             _photoProgress.color = Ui.Accent;
@@ -691,9 +701,14 @@ namespace SuitWardrobeSimple
 
             _wear = Ui.Button(panel, "Wear", "Wear", 30f, Ui.AccentDark, () => Hide(wear: true));
             _wearLabel = _wear.GetComponentInChildren<TextMeshProUGUI>();
+            FitLabel(_wearLabel);
+            _wearIcon = Ui.Icon(_wear.transform, "Icon");
             Ui.Box((RectTransform)_wear.transform, SideLeft, PanelHeight - Pad - 64f, SideWidth - 180f, 64f);
 
             Button close = Ui.Button(panel, "Close", "Close", 26f, Ui.Raised, () => Hide(wear: false));
+            _closeLabel = close.GetComponentInChildren<TextMeshProUGUI>();
+            FitLabel(_closeLabel);
+            _closeIcon = Ui.Icon(close.transform, "Icon");
             Ui.Box((RectTransform)close.transform, SideLeft + SideWidth - 168f, PanelHeight - Pad - 64f, 168f, 64f);
         }
     }

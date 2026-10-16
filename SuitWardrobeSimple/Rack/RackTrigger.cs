@@ -36,7 +36,6 @@ namespace SuitWardrobeSimple
             spot.tag = "InteractTrigger";
             spot.layer = LayerMask.NameToLayer("InteractableObject");
 
-            // Trigger only, so players and items can still pass through.
             var box = spot.AddComponent<BoxCollider>();
             box.isTrigger = true;
             spot.AddComponent<RackFit>();
@@ -76,7 +75,6 @@ namespace SuitWardrobeSimple
 
         private const string RailMesh = "NurbsPath.002";
 
-        // Keeps the last shown suit from clipping into the end post.
         private const float EndClearance = 0.15f;
 
         private const float Margin = 0.05f;
@@ -101,6 +99,9 @@ namespace SuitWardrobeSimple
         private const string Boots = "ScavengerModelSuitParts";
         private GameObject _boots;
         private bool _bootsHidden;
+
+        private const float SearchTime = 10f;
+        private float _searchUntil;
         private float _nextFit;
 
         private readonly HashSet<Renderer> _hidden = new HashSet<Renderer>();
@@ -113,6 +114,7 @@ namespace SuitWardrobeSimple
         private void OnEnable()
         {
             _instance = this;
+            _searchUntil = Time.time + SearchTime;
             Settings.HidePageButtons.SettingChanged += OnSettingChanged;
             Settings.ShowBoots.SettingChanged += OnSettingChanged;
         }
@@ -125,7 +127,11 @@ namespace SuitWardrobeSimple
                 _instance = null;
         }
 
-        private void OnSettingChanged(object sender, System.EventArgs e) => Refresh();
+        private void OnSettingChanged(object sender, System.EventArgs e)
+        {
+            _searchUntil = Time.time + SearchTime;
+            Refresh();
+        }
 
         // The box is refit next frame, AutoParentToShip moves the suits in LateUpdate.
         internal static void Refresh()
@@ -144,6 +150,7 @@ namespace SuitWardrobeSimple
                 return;
 
             _nextFit = Time.time + Interval;
+            SuitUnlocker.Tick();
             Quiet();
             Dress();
             Fit();
@@ -188,7 +195,6 @@ namespace SuitWardrobeSimple
 
         private void Fit()
         {
-            // Start with the rail, so an empty rack still opens the wardrobe.
             (float railStart, float railEnd) = RailSpan();
             var min = new Vector3(-0.15f, -0.1f, railStart);
             var max = new Vector3(0.15f, 0.3f, railEnd);
@@ -198,14 +204,12 @@ namespace SuitWardrobeSimple
                 if (!Paged)
                     HideIfPastRail(suit, railEnd);
 
-                // Skip hidden suits (past the rail or on another page),
-                // they'd stretch the box into the wall.
+                // Hidden suits would stretch the box into the wall.
                 Renderer mesh = suit.suitRenderer;
                 if (mesh == null || !mesh.enabled || mesh.bounds.size == Vector3.zero)
                     continue;
 
-                // Position comes from the hanger, the mesh bounds are only used for the height.
-                // The bounds include the arms, which would make the box too wide.
+                // The mesh bounds include the arms, so they're only used for the height.
                 Vector3 hanger = transform.InverseTransformPoint(suit.transform.position);
                 float bottom = hanger.y;
                 float top = hanger.y;
@@ -259,16 +263,27 @@ namespace SuitWardrobeSimple
 
         private void Dress()
         {
-            if (Paged)
-            {
-                if (_pageLabel == null)
-                    _pageLabel = GameObject.Find(PageLabel);
-                _pageLabelHidden = Show(_pageLabel, !Settings.HidePageButtons.Value, _pageLabelHidden);
-            }
+            if (Paged && (Settings.HidePageButtons.Value || _pageLabelHidden))
+                _pageLabelHidden = Show(Look(ref _pageLabel, PageLabel), !Settings.HidePageButtons.Value, _pageLabelHidden);
 
-            if (_boots == null)
-                _boots = GameObject.Find(Boots);
-            _bootsHidden = Show(_boots, Settings.ShowBoots.Value, _bootsHidden);
+            if (!Settings.ShowBoots.Value || _bootsHidden)
+                _bootsHidden = Show(Look(ref _boots, Boots), Settings.ShowBoots.Value, _bootsHidden);
+        }
+
+        // Searches the scene for a ship part only for a while after the lobby starts, a setting
+        // changes or the part we had gets replaced, not for ever when it isn't there.
+        private GameObject Look(ref GameObject part, string name)
+        {
+            if (part != null)
+                return part;
+            if (!ReferenceEquals(part, null))
+            {
+                part = null;
+                _searchUntil = Time.time + SearchTime;
+            }
+            if (Time.time <= _searchUntil)
+                part = GameObject.Find(name);
+            return part;
         }
 
         // Only renderers and colliders, TooManySuits' own updates run on the page label.
@@ -287,9 +302,7 @@ namespace SuitWardrobeSimple
         // The box has to end below the TooManySuits arrows or they can't be clicked.
         private float BelowPageButtons()
         {
-            if (_pageLabel == null)
-                _pageLabel = GameObject.Find(PageLabel);
-            if (_pageLabel == null)
+            if (Look(ref _pageLabel, PageLabel) == null)
                 return float.MaxValue;
 
             float bottom = float.MaxValue;

@@ -8,7 +8,11 @@ namespace SuitWardrobeSimple.Patches
     internal static class PositionSuitsOnRackPatch
     {
         [HarmonyPostfix]
-        private static void Postfix() => RackFit.Refresh();
+        private static void Postfix()
+        {
+            RackFit.Refresh();
+            WardrobeMenu.SuitsChanged();
+        }
     }
 
     // TooManySuits turns the suit hitboxes back on with every page change.
