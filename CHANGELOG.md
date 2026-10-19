@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.2.1
+- The suit rack blocks players again. Turning off the suits' own hitboxes had made it possible to
+  walk through it.
+
 ## 0.2.0
 - Controller support in the wardrobe: stick or d-pad to pick a suit, shoulder buttons to change
   tab, right stick to turn and zoom the preview.
