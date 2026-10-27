@@ -177,8 +177,8 @@ namespace SuitWardrobeSimple
             }
         }
 
-        // The suits' own colliders are turned off, so players would walk through the rack. A copy on
-        // the Colliders layer still blocks them, and the interact ray doesn't look at that layer.
+        // The suits' own colliders are turned off, so players would walk through the rack.
+        // A copy on the Colliders layer still blocks them, and the interact ray doesn't look at that layer.
         private const string SolidName = "SuitWardrobeSimpleSolid";
         private static readonly int SolidLayer = LayerMask.NameToLayer("Colliders") is int layer && layer >= 0 ? layer : 11;
 
@@ -322,8 +322,7 @@ namespace SuitWardrobeSimple
                 _bootsHidden = Show(Look(ref _boots, Boots), Settings.ShowBoots.Value, _bootsHidden);
         }
 
-        // Searches the scene for a ship part only for a while after the lobby starts, a setting
-        // changes or the part we had gets replaced, not for ever when it isn't there.
+        // Searches the scene for a ship part only for a while after the lobby starts, a setting changes or the part we had gets replaced, not for ever when it isn't there.
         private GameObject Look(ref GameObject part, string name)
         {
             if (part != null)

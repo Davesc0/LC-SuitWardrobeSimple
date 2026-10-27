@@ -4,7 +4,7 @@
 		<TargetFramework>netstandard2.1</TargetFramework>
 		<AssemblyName>SuitWardrobeSimple</AssemblyName>
 		<Description>The suit rack opens a UI menu instead of the vanilla rack.</Description>
-		<Version>0.2.1</Version>
+		<Version>0.3.0</Version>
 		<LangVersion>latest</LangVersion>
 	</PropertyGroup>
 

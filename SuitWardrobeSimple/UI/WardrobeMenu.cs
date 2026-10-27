@@ -244,7 +244,7 @@ namespace SuitWardrobeSimple
             yield return AllTab;
             yield return FavouritesTab;
 
-            IEnumerable<string> sources = _suits.Select(suit => suit.Source).Distinct().ToList();
+            IEnumerable<string> sources = _suits.Select(suit => suit.Tab).Distinct().ToList();
             if (sources.Contains(SuitSources.Vanilla))
                 yield return SuitSources.Vanilla;
             foreach (string source in sources.Where(source => source != SuitSources.Vanilla && source != SuitSources.Other)
@@ -295,7 +295,7 @@ namespace SuitWardrobeSimple
                 string tab = entry.Key;
                 int count = tab == AllTab ? _suits.Count
                     : tab == FavouritesTab ? _suits.Count(suit => Saved.IsFavourite(suit.Name))
-                    : _suits.Count(suit => suit.Source == tab);
+                    : _suits.Count(suit => suit.Tab == tab);
                 entry.Value.text = count.ToString();
             }
         }
@@ -319,7 +319,7 @@ namespace SuitWardrobeSimple
             return _suits.Where(suit =>
                 (_tab == AllTab
                  || (_tab == FavouritesTab && Saved.IsFavourite(suit.Name))
-                 || suit.Source == _tab)
+                 || suit.Tab == _tab)
                 && (query.Length == 0 || suit.Name.IndexOf(query, StringComparison.OrdinalIgnoreCase) >= 0));
         }
 

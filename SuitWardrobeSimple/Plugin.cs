@@ -11,7 +11,7 @@ namespace SuitWardrobeSimple
     {
         public const string modGUID = "dev.davesco.SuitWardrobeSimple";
         public const string modName = "SuitWardrobeSimple";
-        public const string modVersion = "0.2.1";
+        public const string modVersion = "0.3.0";
         private Harmony _harmony = new Harmony(modGUID);
         internal static ManualLogSource mlg = BepInEx.Logging.Logger.CreateLogSource(modGUID);
 

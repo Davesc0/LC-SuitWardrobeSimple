@@ -105,8 +105,8 @@ namespace SuitWardrobeSimple
             ShowHints();
         }
 
-        // Shows the button's icon while a controller is in use. Without InputUtils there are no
-        // icons, and the button's name in brackets is returned to go in front of the text instead.
+        // Shows the button's icon while a controller is in use.
+        // Without InputUtils there are no icons, and the button's name in brackets is returned to go in front of the text instead.
         private string Prompt(Image icon, string control, string xbox, string playStation)
         {
             Sprite sprite = _usingGamepad && control != null ? PadGlyphs.Get(control) : null;

@@ -10,6 +10,9 @@ namespace SuitWardrobeSimple
         internal string Name;
         internal string Source;
 
+        // The tab it's listed under: its source, or Other when small packs are grouped.
+        internal string Tab;
+
         internal UnlockableSuit Hanger;
     }
 
@@ -34,15 +37,35 @@ namespace SuitWardrobeSimple
                     continue;
 
                 UnlockableItem unlockable = unlockables[id];
+                string source = SuitSources.SourceOf(unlockable.unlockableName);
                 entries.Add(new SuitEntry
                 {
                     Id = id,
                     Name = unlockable.unlockableName,
-                    Source = SuitSources.SourceOf(unlockable.unlockableName),
+                    Source = source,
+                    Tab = source,
                     Hanger = hanger
                 });
             }
+
+            if (Settings.GroupSmallPacks.Value)
+                GroupSmallPacks(entries, Settings.SmallPackSize.Value);
             return entries;
+        }
+
+        private static void GroupSmallPacks(List<SuitEntry> entries, int size)
+        {
+            HashSet<string> small = new HashSet<string>(entries
+                .Where(entry => entry.Source != SuitSources.Vanilla && entry.Source != SuitSources.Other)
+                .GroupBy(entry => entry.Source)
+                .Where(pack => pack.Count() <= size)
+                .Select(pack => pack.Key));
+
+            foreach (SuitEntry entry in entries)
+            {
+                if (small.Contains(entry.Source))
+                    entry.Tab = SuitSources.Other;
+            }
         }
     }
 }

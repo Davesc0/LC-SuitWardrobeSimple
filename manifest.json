@@ -1,6 +1,6 @@
 {
     "name": "SuitWardrobeSimple",
-    "version_number": "0.2.1",
+    "version_number": "0.3.0",
     "website_url": "https://github.com/Davesc0/LC-SuitWardrobeSimple",
     "description": "The suit rack opens a UI menu instead of the vanilla rack.",
     "dependencies": [

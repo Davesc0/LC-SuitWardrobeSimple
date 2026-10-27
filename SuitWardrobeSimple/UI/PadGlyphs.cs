@@ -5,8 +5,8 @@ using UnityEngine;
 
 namespace SuitWardrobeSimple
 {
-    // Button icons from InputUtils, when it's installed. CorrectControllerIcon, if present, makes
-    // InputUtils hand out the icons of the controller picked there.
+    // Button icons from InputUtils, when it's installed.
+    // CorrectControllerIcon, if present, makes InputUtils hand out the icons of the controller picked there.
     internal static class PadGlyphs
     {
         private static readonly bool HasInputUtils = Chainloader.PluginInfos.ContainsKey("com.rune580.LethalCompanyInputUtils");

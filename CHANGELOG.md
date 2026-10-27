@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.3.0
+- New config options `GroupSmallPacks` and `SmallPackSize` (off by default): mods or authors
+  with only a few suits go under the Other tab instead of getting a tab each. The suit still
+  shows which pack it came from.
+
 ## 0.2.1
 - The suit rack blocks players again. Turning off the suits' own hitboxes had made it possible to
   walk through it.
